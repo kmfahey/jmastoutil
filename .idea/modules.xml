@@ -2,6 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/JMastoUtil.iml" filepath="$PROJECT_DIR$/JMastoUtil.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/JMastoUtil.main.iml" filepath="$PROJECT_DIR$/.idea/modules/JMastoUtil.main.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/modules/JMastoUtil.test.iml" filepath="$PROJECT_DIR$/.idea/modules/JMastoUtil.test.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/jmastoutil.iml" filepath="$PROJECT_DIR$/.idea/jmastoutil.iml" />
     </modules>
   </component>
