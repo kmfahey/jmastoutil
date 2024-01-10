@@ -36,10 +36,28 @@ public class DataStore {
             System.exit(1);
         }
         Set<String> tablesInDatabase = checkTablesInDatabase();
+        /* This switch needs to be completed and then all this logic needs to be moved to a subordinate method. */
+        enableForeignKeys();
         switch (tablesInDatabase.size()) {
-            case 0 -> { /* database has no tables, therefore it's new */ }
-            case 4 -> { /* database has all expected tables, therefore it's pre-existing and likely nonempty */ }
-            default -> { /* database has some tables not others, got corrupted somehow */ }
+            /* database has no tables, therefore it's new */
+            case 0 -> {
+                createProfilesTable();
+                createProfilesIndex();
+                createProfilesFtsTable();
+                createNotifsTable();
+                createFollowTable();
+            }
+            /* database has all expected tables, therefore it's pre-existing and likely nonempty */
+            case 4 -> { }
+            /* database has some tables not others, got corrupted somehow */
+            default -> {
+                dropAllTablesAndIndexes();
+                createProfilesTable();
+                createProfilesIndex();
+                createProfilesFtsTable();
+                createNotifsTable();
+                createFollowTable();
+            }
         }
     }
 
@@ -63,9 +81,6 @@ public class DataStore {
         return tablesFound;
     }
 
-    /* Got the below code from ChatGPT. Needs rewriting to store relevant vars as instance fields, and to do the work
-       based out of the constructor */
-
     private Path getDatabasePath() {
         String userHome = System.getProperty("user.home");
 
@@ -79,7 +94,6 @@ public class DataStore {
                 System.exit(1);
             }
         }
-
         return appDirPath.resolve(databaseName);
     }
 
@@ -234,5 +248,19 @@ public class DataStore {
             System.exit(1);
         }
         return false;
+    }
+
+    private void dropAllTablesAndIndexes() {
+        try (Statement statement = dbConnection.createStatement()) {
+            statement.execute("DROP TABLE IF EXISTS follow;");
+            statement.execute("DROP TABLE IF EXISTS notifs;");
+            statement.execute("DROP TABLE IF EXISTS profiles_fts;");
+            statement.execute("DROP INDEX IF EXISTS idx_profiles_fts_rowid;");
+            statement.execute("DROP TABLE IF EXISTS profiles;");
+        } catch (SQLException exception) {
+            System.err.println("Unable to drop tables and indexes due to SQL error:");
+            exception.printStackTrace();
+            System.exit(1);
+        }
     }
 }
