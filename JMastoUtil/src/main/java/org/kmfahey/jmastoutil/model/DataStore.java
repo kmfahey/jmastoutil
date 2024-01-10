@@ -35,33 +35,27 @@ public class DataStore {
             exception.printStackTrace();
             System.exit(1);
         }
-        Set<String> tablesInDatabase = checkTablesInDatabase();
-        /* This switch needs to be completed and then all this logic needs to be moved to a subordinate method. */
-        enableForeignKeys();
-        switch (tablesInDatabase.size()) {
-            /* database has no tables, therefore it's new */
-            case 0 -> {
-                createProfilesTable();
-                createProfilesIndex();
-                createProfilesFtsTable();
-                createNotifsTable();
-                createFollowTable();
-            }
-            /* database has all expected tables, therefore it's pre-existing and likely nonempty */
-            case 4 -> { }
-            /* database has some tables not others, got corrupted somehow */
-            default -> {
-                dropAllTablesAndIndexes();
-                createProfilesTable();
-                createProfilesIndex();
-                createProfilesFtsTable();
-                createNotifsTable();
-                createFollowTable();
-            }
+        int tablesCount = countTablesInDatabase();
+        if (tablesCount == 0) {
+            /* The database has no tables, therefore it's new. */
+            createTablesAndIndex();
+        } else if (tablesCount != 4) {
+            /* The correct number of tables is 4. So database has some tables not others; it got corrupted somehow. */
+            dropAllTablesAndIndex();
+            createTablesAndIndex();
         }
     }
 
-    private Set<String> checkTablesInDatabase() {
+    private void createTablesAndIndex() {
+        createProfilesTable();
+        /* This index on the profiles needs to be created after the table is created by the above method call. */
+        createProfilesIndex();
+        createProfilesFtsTable();
+        createNotifsTable();
+        createFollowTable();
+    }
+
+    private int countTablesInDatabase() {
         Set<String> tablesFound = new HashSet<>();
         try (
             Statement statement = dbConnection.createStatement();
@@ -78,7 +72,7 @@ public class DataStore {
             exception.printStackTrace();
             System.exit(1);
         }
-        return tablesFound;
+        return tablesFound.size();
     }
 
     private Path getDatabasePath() {
@@ -233,25 +227,30 @@ public class DataStore {
 
     private boolean updateProfilesTableWithRowid(String userId) {
         try (Statement statement = dbConnection.createStatement()) {
-            int rowsAffected = statement.executeUpdate(
-            "    UPDATE profiles" +
-            "    SET fts_rowid = (" +
-            "        SELECT rowid" +
-            "        FROM profiles_fts" +
-            "        WHERE profiles_fts.user_id = \"" + userId + "\"" +
-            "    )" +
-            "    WHERE user_id = \"" + userId + "\";");
+            int rowsAffected = statement.executeUpdate("""
+                UPDATE profiles
+                SET fts_rowid = (
+                    SELECT rowid
+                    FROM profiles_fts
+                    WHERE profiles_fts.user_id = "%s"
+                )
+                WHERE user_id = "%s";
+            """.formatted(userId, userId));
             return rowsAffected > 0;
         } catch (SQLException exception) {
-            System.err.println("Unable to update profiles table with rowid from profiles_fts table for user_id '" + userId + "' due to SQL error:");
+            System.err.println(
+                    "Unable to update profiles table with rowid from profiles_fts table "
+                    + "for user_id '%s' due to SQL error:".format(userId)
+            );
             exception.printStackTrace();
             System.exit(1);
         }
         return false;
     }
 
-    private void dropAllTablesAndIndexes() {
+    private void dropAllTablesAndIndex() {
         try (Statement statement = dbConnection.createStatement()) {
+            /* Dropping the tables and index in the reverse order from how they're meant to be created. */
             statement.execute("DROP TABLE IF EXISTS follow;");
             statement.execute("DROP TABLE IF EXISTS notifs;");
             statement.execute("DROP TABLE IF EXISTS profiles_fts;");
