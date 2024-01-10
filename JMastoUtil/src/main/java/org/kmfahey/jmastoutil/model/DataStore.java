@@ -25,6 +25,10 @@ public class DataStore {
     private static final String databaseName = "mastoAcctData.db";
     private static final Set<String> databaseTables = new HashSet<>(Arrays.asList("profiles", "profiles_fts", "notifs", "follow"));
     private Connection dbConnection = null;
+    private PreparedStatement preparedInsertIntoProfiles;
+    private PreparedStatement preparedInsertIntoProfilesFts;
+    private PreparedStatement preparedInsertIntoNotifs;
+    private PreparedStatement preparedInsertIntoFollow;
 
     public DataStore() {
         Path sqliteFilePath = getDatabasePath();
@@ -35,6 +39,7 @@ public class DataStore {
             exception.printStackTrace();
             System.exit(1);
         }
+
         int tablesCount = countTablesInDatabase();
         if (tablesCount == 0) {
             /* The database has no tables, therefore it's new. */
@@ -44,6 +49,8 @@ public class DataStore {
             dropAllTablesAndIndex();
             createTablesAndIndex();
         }
+
+        prepareStatements();
     }
 
     private void createTablesAndIndex() {
@@ -258,6 +265,47 @@ public class DataStore {
             statement.execute("DROP TABLE IF EXISTS profiles;");
         } catch (SQLException exception) {
             System.err.println("Unable to drop tables and indexes due to SQL error:");
+            exception.printStackTrace();
+            System.exit(1);
+        }
+    }
+
+    private void prepareStatements() {
+        int statementNumber = 1;
+        try (Statement statement = dbConnection.createStatement()) {
+            preparedInsertIntoProfiles = dbConnection.prepareStatement("""
+                 INSERT INTO profiles (
+                     `user_id`, `fts_rowid`, `acct_id`, `user_name`, `instance`, `uri`,
+                     `field_name_1`, `field_value_1`, `field_name_2`, `field_value_2`,
+                     `field_name_3`, `field_value_3`, `field_name_4`, `field_value_4`,
+                     `profile_text`, `earliest_notif`, `loginable`, `tested`
+                 ) VALUES (
+                     ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                     ?, ?, ?, ?, ?, ?, ?, ?, ?
+                    );
+            """);
+            statementNumber = 2;
+            preparedInsertIntoProfilesFts = dbConnection.prepareStatement("""
+                INSERT INTO profiles_fts (
+                    `user_id`, `user_name`, `instance`, `field_name_1`, `field_value_1`,
+                    `field_name_2`, `field_value_2`, `field_name_3`, `field_value_3`,
+                    `field_name_4`, `field_value_4`, `profile_text`
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            """);
+            statementNumber = 3;
+            preparedInsertIntoNotifs = dbConnection.prepareStatement("""
+                INSERT INTO notifs (
+                    `from_user_id`, `to_user_id`, `created_at`, `notif_type`, `status_uri`
+                ) VALUES (?, ?, ?, ?, ?);
+            """);
+            statementNumber = 4;
+            preparedInsertIntoFollow = dbConnection.prepareStatement("""
+                INSERT INTO follow (`by_user_id`, `of_user_id`, `last_event`, `relation_type`) VALUES (?, ?, ?, ?);
+            """);
+        } catch (SQLException exception) {
+            System.err.println(
+                "Unable to create prepared statements (on statement number " + statementNumber + ") due to SQL error:"
+            );
             exception.printStackTrace();
             System.exit(1);
         }
