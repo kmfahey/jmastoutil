@@ -195,7 +195,7 @@ public class DataStore {
                     by_user_id TEXT PRIMARY KEY NOT NULL,
                     of_user_id TEXT NOT NULL,
                     last_event DATETIME NOT NULL,
-                    relation TEXT NOT NULL,
+                    relation_type TEXT NOT NULL,
                     FOREIGN KEY (by_user_id) REFERENCES profiles(user_id),
                     FOREIGN KEY (of_user_id) REFERENCES profile(user_id)
                 );
